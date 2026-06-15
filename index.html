@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Catcher Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0f172a; font-family: sans-serif; touch-action: none; }
+        #gameCanvas { display: block; background: linear-gradient(to bottom, #1e293b, #0f172a); }
+        #scoreBoard { 
+            position: absolute; top: 20px; left: 20px; color: #fbbf24; font-size: 28px; font-weight: bold;
+            pointer-events: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">Score: 0</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBoard = document.getElementById('scoreBoard');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0;
+        let basket = { x: canvas.width / 2 - 40, y: canvas.height - 120, w: 90, h: 25 };
+        let fallingEmojis = [];
+        const emojis = ['🍎', '🍕', '🍔', '🍦', '🍩', '🍫', '🍇', '🍓'];
+
+        function drawBasket() {
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath();
+            ctx.roundRect(basket.x, basket.y, basket.w, basket.h, 10);
+            ctx.fill();
+        }
+
+        function createEmoji() {
+            const x = Math.random() * (canvas.width - 40);
+            const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+            // Game speed badhti jayegi jaise score badhega
+            const speed = 2 + (Math.random() * 3) + (score / 10);
+            fallingEmojis.push({ x: x, y: -50, emoji: emoji, speed: speed });
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBasket();
+
+            fallingEmojis.forEach((e, index) => {
+                e.y += e.speed;
+                ctx.font = '35px Arial';
+                ctx.fillText(e.emoji, e.x, e.y);
+
+                // Collision detection
+                if (e.y > basket.y && e.y < basket.y + basket.h && e.x > basket.x - 20 && e.x < basket.x + basket.w) {
+                    score++;
+                    scoreBoard.innerText = "Score: " + score;
+                    fallingEmojis.splice(index, 1);
+                }
+
+                // Agar niche gir gaya toh remove
+                if (e.y > canvas.height) fallingEmojis.splice(index, 1);
+            });
+
+            if (Math.random() < 0.04) createEmoji();
+            requestAnimationFrame(update);
+        }
+
+        // Touch control for mobile
+        window.addEventListener('touchmove', (e) => {
+            basket.x = e.touches[0].clientX - basket.w / 2;
+            e.preventDefault();
+        }, {passive: false});
+        
+        window.addEventListener('mousemove', (e) => {
+            basket.x = e.clientX - basket.w / 2;
+        });
+
+        // Window resize handle
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            basket.y = canvas.height - 120;
+        });
+
+        update();
+    </script>
+</body>
+</html>
