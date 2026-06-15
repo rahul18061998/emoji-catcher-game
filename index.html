@@ -3,91 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emoji Catcher Game</title>
+    <title>Fruit Catcher Boy Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0f172a; font-family: sans-serif; touch-action: none; }
-        #gameCanvas { display: block; background: linear-gradient(to bottom, #1e293b, #0f172a); }
-        #scoreBoard { 
-            position: absolute; top: 20px; left: 20px; color: #fbbf24; font-size: 28px; font-weight: bold;
-            pointer-events: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
+        body { margin: 0; overflow: hidden; transition: background-color 0.8s ease; font-family: 'Arial', sans-serif; background-color: #1a1a2e; touch-action: none; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 5px rgba(0,0,0,0.5); pointer-events: none; }
+        #gameOver { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; color: white; background: rgba(0,0,0,0.85); padding: 40px; border-radius: 20px; z-index: 10; }
+        button { padding: 15px 40px; font-size: 20px; cursor: pointer; border: none; border-radius: 50px; background: #ff4757; color: white; font-weight: bold; transition: transform 0.2s; }
+        button:hover { transform: scale(1.1); }
+        canvas { display: block; cursor: none; }
     </style>
 </head>
 <body>
-
-    <div id="scoreBoard">Score: 0</div>
+    <div id="ui">Score: <span id="score">0</span> | Level: <span id="level">1</span></div>
+    <div id="gameOver">
+        <h1>Game Over!</h1>
+        <h2 id="finalScore">Your Score: 0</h2>
+        <button onclick="resetGame()">Restart Game</button>
+    </div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const scoreBoard = document.getElementById('scoreBoard');
+        const scoreEl = document.getElementById('score');
+        const levelEl = document.getElementById('level');
+        const finalScoreEl = document.getElementById('finalScore');
+        const gameOverEl = document.getElementById('gameOver');
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        let score = 0, level = 1, speed = 4, running = true;
+        let player = { x: 0, w: 100, h: 120 };
+        let items = [];
 
-        let score = 0;
-        let basket = { x: canvas.width / 2 - 40, y: canvas.height - 120, w: 90, h: 25 };
-        let fallingEmojis = [];
-        const emojis = ['🍎', '🍕', '🍔', '🍦', '🍩', '🍫', '🍇', '🍓'];
-
-        function drawBasket() {
-            ctx.fillStyle = '#f97316';
-            ctx.beginPath();
-            ctx.roundRect(basket.x, basket.y, basket.w, basket.h, 10);
-            ctx.fill();
+        function getRandomColor() {
+            return `hsl(${Math.random() * 360}, 50%, 20%)`;
         }
 
-        function createEmoji() {
-            const x = Math.random() * (canvas.width - 40);
-            const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-            // Game speed badhti jayegi jaise score badhega
-            const speed = 2 + (Math.random() * 3) + (score / 10);
-            fallingEmojis.push({ x: x, y: -50, emoji: emoji, speed: speed });
-        }
-
-        function update() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBasket();
-
-            fallingEmojis.forEach((e, index) => {
-                e.y += e.speed;
-                ctx.font = '35px Arial';
-                ctx.fillText(e.emoji, e.x, e.y);
-
-                // Collision detection
-                if (e.y > basket.y && e.y < basket.y + basket.h && e.x > basket.x - 20 && e.x < basket.x + basket.w) {
-                    score++;
-                    scoreBoard.innerText = "Score: " + score;
-                    fallingEmojis.splice(index, 1);
-                }
-
-                // Agar niche gir gaya toh remove
-                if (e.y > canvas.height) fallingEmojis.splice(index, 1);
-            });
-
-            if (Math.random() < 0.04) createEmoji();
-            requestAnimationFrame(update);
-        }
-
-        // Touch control for mobile
-        window.addEventListener('touchmove', (e) => {
-            basket.x = e.touches[0].clientX - basket.w / 2;
-            e.preventDefault();
-        }, {passive: false});
-        
-        window.addEventListener('mousemove', (e) => {
-            basket.x = e.clientX - basket.w / 2;
-        });
-
-        // Window resize handle
-        window.addEventListener('resize', () => {
+        function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            basket.y = canvas.height - 120;
-        });
+            player.x = canvas.width / 2 - player.w / 2;
+        }
 
-        update();
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', (e) => player.x = e.clientX - player.w / 2);
+        // Mobile touch support
+        window.addEventListener('touchmove', (e) => player.x = e.touches[0].clientX - player.w / 2);
+        
+        resize();
+
+        function spawnItem() {
+            const types = [
+                { emoji: '🍎', pts: 1 }, { emoji: '🍌', pts: 1 }, { emoji: '🍇', pts: 2 },
+                { emoji: '🍊', pts: 2 }, { emoji: '🥭', pts: 3 }, { emoji: '🍒', pts: 3 },
+                { emoji: '⭐', pts: 5 }, { emoji: '💣', pts: 'bomb' }
+            ];
+            const type = types[Math.floor(Math.random() * types.length)];
+            items.push({ x: Math.random() * (canvas.width - 50), y: -60, type: type });
+        }
+
+        function resetGame() {
+            score = 0; level = 1; speed = 4; items = []; running = true;
+            gameOverEl.style.display = 'none';
+            document.body.style.backgroundColor = '#1a1a2e';
+            scoreEl.innerText = score; levelEl.innerText = level;
+            animate();
+        }
+
+        function drawPlayer() {
+            // Boy character using emojis
+            ctx.font = "80px Arial";
+            ctx.fillText('🏃', player.x + 10, canvas.height - 30);
+            // Basket
+            ctx.font = "60px Arial";
+            ctx.fillText('🧺', player.x + 20, canvas.height - 10);
+        }
+
+        function animate() {
+            if (!running) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawPlayer();
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                let it = items[i];
+                it.y += speed;
+
+                ctx.font = "40px Arial";
+                ctx.fillText(it.type.emoji, it.x, it.y);
+
+                // Collision Detection with the basket area
+                if (it.y + 40 > canvas.height - 80 && it.x > player.x && it.x < player.x + player.w) {
+                    if (it.type.pts === 'bomb') {
+                        running = false;
+                        finalScoreEl.innerText = "Your Score: " + score;
+                        gameOverEl.style.display = 'block';
+                    } else {
+                        score += it.type.pts;
+                        scoreEl.innerText = score;
+                        if (Math.floor(score / 20) + 1 > level) {
+                            level++;
+                            levelEl.innerText = level;
+                            speed += 0.8;
+                            document.body.style.backgroundColor = getRandomColor();
+                        }
+                    }
+                    items.splice(i, 1);
+                } else if (it.y > canvas.height) items.splice(i, 1);
+            }
+
+            if (Math.random() < 0.05) spawnItem();
+            requestAnimationFrame(animate);
+        }
+
+        animate();
     </script>
 </body>
 </html>
